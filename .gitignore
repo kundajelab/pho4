@@ -56,6 +56,11 @@ coverage.xml
 local_settings.py
 db.sqlite3
 
+# Data:
+*.gz
+*.bw
+*.bed
+
 # Flask stuff:
 instance/
 .webassets-cache
