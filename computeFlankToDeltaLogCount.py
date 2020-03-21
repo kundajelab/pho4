@@ -1,31 +1,3 @@
-import json
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0,3"
-
-flankToDdGList = {}
-firstLine = True
-with open("GSE111936_counts.txt") as inp:
-    for line in inp:
-        if firstLine:
-            firstLine = False
-            continue
-        flank = line.strip().split('\t')[0]
-        ddG = float(line.strip().split('\t')[5])
-        if ddG == float('inf'):
-            continue
-        if flank not in flankToDdGList:
-            flankToDdGList[flank] = []
-        flankToDdGList[flank].append(ddG)
-        
-flankToDdG = {}
-for key, value in flankToDdGList.items():
-    if len(value) == 0:
-        continue
-    flankToDdG[key] = sum(value) / float(len(value))
-
-with open('FlankToDdG.json', 'w') as fp:
-    json.dump(flankToDdG, fp, sort_keys=True, indent=4)
-    
 import keras_genomics
 from keras_genomics.layers.convolutional import RevCompConv1D
 import keras
@@ -38,7 +10,10 @@ from seqdataloader.batchproducers.coordbased import coordstovals
 from seqdataloader.batchproducers.coordbased import coordbatchproducers
 from seqdataloader.batchproducers.coordbased import coordbatchtransformers
 from keras.models import load_model
-
+from keras.utils import CustomObjectScope
+import json
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0,3"
 
 def multinomial_nll(true_counts, logits):
     """Compute the multinomial negative log-likelihood
@@ -51,7 +26,6 @@ def multinomial_nll(true_counts, logits):
                                          logits=logits)
     return (-tf.reduce_sum(dist.log_prob(true_counts)) / 
             tf.to_float(tf.shape(true_counts)[0]))
-
 
 #from https://github.com/kundajelab/basepair/blob/cda0875571066343cdf90aed031f7c51714d991a/basepair/losses.py#L87
 class MultichannelMultinomialNLL(object):
@@ -70,9 +44,6 @@ class MultichannelMultinomialNLL(object):
 
     def get_config(self):
         return {"n": self.n}
-        
-
-from keras.utils import CustomObjectScope
 
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
   model = load_model('my_model.h5')
