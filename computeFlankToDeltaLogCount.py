@@ -15,6 +15,9 @@ import json
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="0,3"
 
+with open('FlankToDdG.json') as f:
+    flankToDdG = json.load(f)
+
 def multinomial_nll(true_counts, logits):
     """Compute the multinomial negative log-likelihood
     Args:
