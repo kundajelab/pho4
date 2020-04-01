@@ -13,10 +13,37 @@ from keras.models import load_model
 from keras.utils import CustomObjectScope
 import json
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0,3"
+import optparse
 
-with open('FlankToDdG.json') as f:
-    flankToDdG = json.load(f)
+parser = optparse.OptionParser()
+
+parser.add_option('--gpus',
+    action="store", dest="gpus",
+    help="which gpus to use", default=None)
+parser.add_option('--flanks_csv',
+    action="store", dest="flanks_csv",
+    help="where are the flanks", default=None)
+parser.add_option('--peaks_bed',
+    action="store", dest="peaks_bed",
+    help="where are the peaks", default=None)
+parser.add_option('--model',
+    action="store", dest="model",
+    help="where is the model", default=None)
+parser.add_option('--output_json',
+    action="store", dest="output_json",
+    help="where to store end result", default=None)
+
+options, args = parser.parse_args()
+
+os.environ["CUDA_VISIBLE_DEVICES"]=options.gpus
+flanks = []
+firstLine = True
+with open(options.flanks_csv) as inp:
+    for line in inp:
+        if firstLine:
+            firstLine = False
+            continue
+        flanks.append(line.strip().split(',')[0])
 
 def multinomial_nll(true_counts, logits):
     """Compute the multinomial negative log-likelihood
@@ -49,18 +76,19 @@ class MultichannelMultinomialNLL(object):
         return {"n": self.n}
 
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
-  model = load_model('my_model.h5')
+  model = load_model(options.model)
 
 seq_len = 546
+out_pred_len = 200
 peaks = []
 test_chrms = ["chrX", "chrXI"]
-with open("peaks.bed") as inp:
+with open(options.peaks_bed) as inp:
     for line in inp:
         chrm = line.strip().split('\t')[0]
         if chrm not in test_chrms:
             continue
         pStart = int(line.strip().split('\t')[1])
-        summit = pStart + int(line.strip().split('\t')[-1])
+        summit = pStart + 1
         start = int(summit - (seq_len/2))
         end = int(summit + (seq_len/2))
         peaks.append((chrm, start, end))
@@ -79,9 +107,9 @@ def customChromSizeSort(c):
   return chrms.index(c[0])
 
 from pyfaidx import Fasta
-genome_object = Fasta("sacCer3.genome.fa")
+genome_object = Fasta("/users/amr1/pho4/data/genome/sacCer3.genome.fa")
 
-chrom_sizes = readChromSizes("sacCer3.chrom.sizes")
+chrom_sizes = readChromSizes("/users/amr1/pho4/data/genome/sacCer3.chrom.sizes")
 chrom_sizes.sort(key=customChromSizeSort)
 
 num_chroms = len(chrom_sizes)
@@ -100,11 +128,10 @@ def getOneHot(ISM_sequences):
   # takes in list of sequences
     one_hot_seqs = []
     for seq in ISM_sequences:
-      one_hot = []
-      for i in range(len(seq)):
-        one_hot.append(ltrdict[seq[i:i+1]])
-      one_hot_seqs.append(one_hot)
-
+        one_hot = []
+        for i in range(len(seq)):
+            one_hot.append(ltrdict[seq[i:i+1]])
+        one_hot_seqs.append(one_hot)
     return np.array(one_hot_seqs)
 
 seq_peaks = []
@@ -122,7 +149,7 @@ for peak in peaks:
 from deeplift.dinuc_shuffle import dinuc_shuffle
 num_samples = 100
 flankToDeltaLogCount = {}
-for flank_id, flank in enumerate(flankToDdG.keys()):
+for flank_id, flank in enumerate(flanks):
     if flank_id % 100000 == 0:
         print("completed processing ", flank_id, " flanks")
     pre_seqs = []
@@ -136,9 +163,9 @@ for flank_id, flank in enumerate(flankToDdG.keys()):
         post_seq = pre_seq[:start] + insert + pre_seq[start+insert_len:]
         pre_seqs.append(pre_seq)
         post_seqs.append(post_seq)
-    pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,200,2))])
-    post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,200,2))])
-    flankToDeltaLogCount[flank] = float(np.mean(np.mean(post[0], axis=1)-np.mean(pre[0], axis=1)))
+    pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+    post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+    flankToDeltaLogCount[flank] = (pre[0],pre[1],post[0],post[1])
 
-with open('FlankToDeltaLogCount.json', 'w') as fp:
+with open(options.output_json, 'w') as fp:
     json.dump(flankToDeltaLogCount, fp)
