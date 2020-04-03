@@ -165,7 +165,12 @@ for flank_id, flank in enumerate(flanks):
         post_seqs.append(post_seq)
     pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
     post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
-    flankToDeltaLogCount[flank] = (pre[0],pre[1],post[0],post[1])
+    
+    flankToDeltaLogCount[flank] = (pre[0].astype(str),
+                                   #pre[1].astype(str),
+                                   post[0].astype(str),
+                                   #post[1].astype(str)
+                                  )
 
 with open(options.output_json, 'w') as fp:
     json.dump(flankToDeltaLogCount, fp)
