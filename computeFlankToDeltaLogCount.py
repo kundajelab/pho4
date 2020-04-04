@@ -12,6 +12,7 @@ from seqdataloader.batchproducers.coordbased import coordbatchtransformers
 from keras.models import load_model
 from keras.utils import CustomObjectScope
 import json
+import codecs
 import os
 import optparse
 
@@ -166,11 +167,17 @@ for flank_id, flank in enumerate(flanks):
     pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
     post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
     
-    flankToDeltaLogCount[flank] = (pre[0].astype(str),
-                                   #pre[1].astype(str),
-                                   post[0].astype(str),
-                                   #post[1].astype(str)
-                                  )
+    flankToDeltaLogCount[flank] = [pre[0].tolist(),
+                                   #pre[1].tolist(),
+                                   post[0].tolist(),
+                                   #post[1].tolist()
+                                  ]
+json.dump(flankToDeltaLogCount,
+          codecs.open(options.output_json, 'w', encoding='utf-8'),
+          separators=(',', ':'),
+          sort_keys=True, indent=4)
 
-with open(options.output_json, 'w') as fp:
-    json.dump(flankToDeltaLogCount, fp)
+## In order to "unjsonify" the array use:
+# obj_text = codecs.open(file_path, 'r', encoding='utf-8').read()
+# b_new = json.loads(obj_text)
+# a_new = np.array(b_new)
