@@ -24,7 +24,7 @@ for filename in os.listdir("data/preds/"):
             flankToLogCount = json.load(f)
             yvals = []
             for key in flankToCbf1Ddg.keys():
-                yvals.append(flankToLogCount[key])
+                yvals.append(float(flankToLogCount[key]))
             plt.scatter(xvals_cbf1, yvals, alpha=0.1)
             plt.xlabel("DDG")
             plt.ylabel(filename)
