@@ -29,4 +29,6 @@ for filename in os.listdir("data/preds/"):
             plt.xlabel("DDG")
             plt.ylabel(filename)
             plt.title("DDG vs model predictions: "+str(spearmanr(xvals_cbf1,yvals)))
-            plt.savefig('data/preds/'+filename+'.png', bbox_inches='tight')
+            plt.savefig('data/preds/figures/'+filename+'.png', bbox_inches='tight')
+            plt.clf()
+            plt.close()
