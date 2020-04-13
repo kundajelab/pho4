@@ -58,6 +58,7 @@ db.sqlite3
 
 # Data:
 data/
+figures/
 *.gz
 *.bw
 *.bed
