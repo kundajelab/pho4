@@ -21,24 +21,11 @@ class CyclicalRepeatPatterns:
         for idx in range(1, int(length/len(token))+1):
             self.extensions.append(token*idx)
 
-    def isPrime(self, n):
-        if n<=3: 
-            return True
-        if n%2==0 or n%3==0: 
-            return False
-        i=5
-        while i*i<=n:
-            if n%i==0 or n%(i+2)==0:
-                return False
-            i+=6
-        return True
-
     def generateAllPatternsOfLength(self, length=4):
         chars = "ACGT"
         for N in range(1, length+1):
-            if self.isPrime(N) or N==length:
-                for item in itertools.product(chars, repeat=N):
-                    self.insertToken("".join(item), length)
+            for item in itertools.product(chars, repeat=N):
+                self.insertToken("".join(item), length)
 
     def getData(self):
         return self.data
