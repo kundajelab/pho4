@@ -277,13 +277,12 @@ def getRepeat(repeatLen, repeatPattern, stack='left', mirror=False):
     else:
         print("unrecognized argument for stack")
         return None
-    
-repeatUntil = int((seq_len-len(motif))/2)
-repeatPattern = options.repeat
 
 bigFont = {'weight' : 'bold', 'size'   : 22}
 smallFont = {'size' : 10}
 
+repeatUntil = int((seq_len-len(motif))/2)
+repeatPattern = options.repeat
 parentDir = options.out_dir
 Path(parentDir).mkdir(parents=True, exist_ok=True)
 

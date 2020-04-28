@@ -281,6 +281,7 @@ def getRepeat(repeatLen, repeatPattern, stack='left', mirror=False):
 bigFont = {'weight' : 'bold', 'size'   : 22}
 smallFont = {'size' : 10}
 
+repeatPattern = options.repeat
 parentDir = options.out_dir
 Path(parentDir).mkdir(parents=True, exist_ok=True)
 
