@@ -1,5 +1,12 @@
 import itertools
 import subprocess
+import optparse
+
+parser = optparse.OptionParser()
+parser.add_option('--task',
+    action="store", dest="task",
+    help="which experiment to run", default=None)
+options, args = parser.parse_args()
 
 class CyclicalRepeatPatterns:
     def __init__(self):
@@ -31,7 +38,7 @@ class CyclicalRepeatPatterns:
         return self.data
 
 p = CyclicalRepeatPatterns()
-p.generateAllPatternsOfLength(6)
+p.generateAllPatternsOfLength(3)
 repeatPatterns=p.getData()
 
 pbexo_pho4 = {
@@ -39,27 +46,27 @@ pbexo_pho4 = {
     "--model": "data/models/pho4_pbexo_model.h5",
     "--out_pred_len": "200",
     "--bed": "data/pho4_pbexo/pho4.pbexo.bed",
-    "--out_dir": "data/insilico_exp/pbexo_pho4/"
+    "--out_dir": "data/insilico_exp/pbexo_pho4/"+options.task+"/"
 }
 pbexo_cbf1 = {
     "--gpus": "0,1,2",
     "--model": "data/models/cbf1_pbexo_model.h5",
     "--out_pred_len": "200",
     "--bed": "data/cbf1_pbexo/cbf1.pbexo.bed",
-    "--out_dir": "data/insilico_exp/pbexo_cbf1/"
+    "--out_dir": "data/insilico_exp/pbexo_cbf1/"+options.task+"/"
 }
 chipexo_cbf1 = {
     "--gpus": "0,1,2",
     "--model": "data/models/cbf1_chipexo_model.h5",
     "--out_pred_len": "225",
     "--bed": "data/cbf1_chipexo/cbf1.chipexo.bed",
-    "--out_dir": "data/insilico_exp/chipexo_cbf1/"
+    "--out_dir": "data/insilico_exp/chipexo_cbf1/"+options.task+"/"
 }
 
 tasks = [pbexo_pho4, pbexo_cbf1, chipexo_cbf1]
 for pattern in repeatPatterns:
     for task in tasks:
-        command = ['python','insilicoExperimentPipeline.py','--repeat', pattern]
+        command = ['python','insilicoExperimentPipeline-'+options.task+'.py','--repeat', pattern]
         for key in task:
             command.append(key)
             if key == "--out_dir":

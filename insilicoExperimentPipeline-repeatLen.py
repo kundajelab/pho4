@@ -287,6 +287,80 @@ smallFont = {'size' : 10}
 parentDir = options.out_dir
 Path(parentDir).mkdir(parents=True, exist_ok=True)
 
+def predictPlotAndSave(seqs, name):
+    test_seqs = getOneHot(seqs)
+    test_preds = model.predict([test_seqs, np.zeros((len(seqs),)),np.zeros((len(seqs),out_pred_len,2))])
+    test_preds_logcount = test_preds[0]
+    test_preds_profile = test_preds[1]
+    test_post_counts_hypimps = profile_model_counts_explainer.shap_values(
+        [test_seqs, np.zeros((len(test_seqs), 1))],
+        progress_message=10)[0]
+    test_post_profile_hypimps = profile_model_profile_explainer.shap_values(
+        [test_seqs, np.zeros((len(test_seqs), out_pred_len, 2))],
+        progress_message=10)[0]
+    test_post_counts_hypimps = np.array(test_post_counts_hypimps)
+    test_post_profile_hypimps = np.array(test_post_profile_hypimps)
+    test_post_counts_actualimps = test_post_counts_hypimps*test_seqs
+    test_post_profile_actualimps = test_post_profile_hypimps*test_seqs
+    
+    childDir = parentDir+name+'/'
+    Path(childDir).mkdir(parents=True, exist_ok=True)
+    counts = []
+    for idx in range(len(seqs)): 
+        predcounts = np.exp(test_preds_logcount[idx])-1
+        counts.append(np.sum(predcounts))
+        fig = plt.figure(figsize=(20,9))
+        plt.rc('font', **smallFont)
+        for oneovertemp in [1.0]:
+            pred_profile = ((np.exp(test_preds_logcount[idx])-1)[None,:] #total counts
+                          *(np.exp(test_preds_profile[idx]*oneovertemp)/
+                            np.sum(np.exp(test_preds_profile[idx]*oneovertemp),axis=0)[None,:]) )   
+            start_view = 0
+            end_view = seq_len
+            total_flanking = seq_len - out_pred_len
+            left_flank = int(0.5*total_flanking)
+            right_flank = total_flanking - left_flank
+            ax1 = fig.add_subplot(311) 
+            plt.plot(np.arange(out_pred_len)+left_flank, pred_profile[:,0])
+            plt.plot(np.arange(out_pred_len)+left_flank, -pred_profile[:,1])
+            plt.xlim(start_view,end_view)
+            if options.out_pred_len == "200":
+                plt.ylim((-1.0, 1.0))
+            elif options.out_pred_len == "225":
+                plt.ylim((-3.0, 3.0))
+            else:
+                print("WARNING: unrecognized out_pred_len")
+            plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
+
+        ax2 = fig.add_subplot(312) 
+        viz_sequence.plot_weights_given_ax(ax=ax2, array=test_post_counts_actualimps[idx][start_view:end_view],
+            height_padding_factor=0.2,
+            length_padding=1.0,
+            subticks_frequency=10,
+            highlight={})
+        ax2.set_ylim((-0.4, 1.2))
+
+        ax3 = fig.add_subplot(313)
+        viz_sequence.plot_weights_given_ax(ax=ax3, array=test_post_profile_actualimps[idx][start_view:end_view],
+            height_padding_factor=0.2,
+            length_padding=1.0,
+            subticks_frequency=10,
+            highlight={})
+        ax3.set_ylim((-0.1, 0.3))
+        fig.savefig(childDir+str(idx).zfill(3)+'.png')
+        plt.close(fig)
+    subprocess.check_call(['tar','-zcvf',parentDir+name+'.zip', childDir])
+    subprocess.check_call(['rm','-rf',childDir])
+
+    fig = plt.figure(figsize=(10,9))
+    plt.rc('font', **bigFont)
+    plt.plot(range(len(seqs)), counts)
+    plt.xlabel("repeat length")
+    plt.ylabel("count prediction")
+    plt.title(repeatPattern+" repeats "+name+" of motif")
+    fig.savefig(parentDir+name+'_trend.png')
+    plt.close(fig)
+
 # left only
 seqs = []
 for repeatLen in range(repeatUntil):
@@ -295,73 +369,7 @@ for repeatLen in range(repeatUntil):
     start = int((seq_len/2)-(len(motif)/2))-repeatLen
     end = int((seq_len/2)+(len(motif)/2))
     seqs.append(background[:start] + insert + background[end:])    
-test_seqs = getOneHot(seqs)
-test_preds = model.predict([test_seqs, np.zeros((len(seqs),)),np.zeros((len(seqs),out_pred_len,2))])
-test_preds_logcount = test_preds[0]
-test_preds_profile = test_preds[1]
-test_post_counts_hypimps = profile_model_counts_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), 1))],
-    progress_message=10)[0]
-test_post_profile_hypimps = profile_model_profile_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), out_pred_len, 2))],
-    progress_message=10)[0]
-test_post_counts_hypimps = np.array(test_post_counts_hypimps)
-test_post_profile_hypimps = np.array(test_post_profile_hypimps)
-test_post_counts_actualimps = test_post_counts_hypimps*test_seqs
-test_post_profile_actualimps = test_post_profile_hypimps*test_seqs
-
-childDir = parentDir + 'left/'
-Path(childDir).mkdir(parents=True, exist_ok=True)
-counts = []
-for idx in range(len(seqs)): 
-    predcounts = np.exp(test_preds_logcount[idx])-1
-    counts.append(np.sum(predcounts))
-    fig = plt.figure(figsize=(20,9))
-    plt.rc('font', **smallFont)
-    for oneovertemp in [1.0]:
-        pred_profile = ((np.exp(test_preds_logcount[idx])-1)[None,:] #total counts
-                      *(np.exp(test_preds_profile[idx]*oneovertemp)/
-                        np.sum(np.exp(test_preds_profile[idx]*oneovertemp),axis=0)[None,:]) )   
-        start_view = 0
-        end_view = seq_len
-        total_flanking = seq_len - out_pred_len
-        left_flank = int(0.5*total_flanking)
-        right_flank = total_flanking - left_flank
-        ax1 = fig.add_subplot(311) 
-        plt.plot(np.arange(out_pred_len)+left_flank, pred_profile[:,0])
-        plt.plot(np.arange(out_pred_len)+left_flank, -pred_profile[:,1])
-        plt.xlim(start_view,end_view)
-        plt.ylim((-0.45, 0.3))
-        plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
-
-    ax2 = fig.add_subplot(312) 
-    viz_sequence.plot_weights_given_ax(ax=ax2, array=test_post_counts_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax2.set_ylim((-0.2, 0.6))
-
-    ax3 = fig.add_subplot(313)
-    viz_sequence.plot_weights_given_ax(ax=ax3, array=test_post_profile_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax3.set_ylim((-0.05, 0.1))
-    fig.savefig(childDir+str(idx).zfill(3)+'.png')
-    plt.close(fig)
-subprocess.check_call(['tar','-zcvf',parentDir+'left.zip', childDir])
-subprocess.check_call(['rm','-rf',childDir])
-
-fig = plt.figure(figsize=(10,9))
-plt.rc('font', **bigFont)
-plt.plot(range(len(seqs)), counts)
-plt.xlabel("repeat length")
-plt.ylabel("count prediction")
-plt.title(repeatPattern+" repeats left of motif")
-fig.savefig(parentDir+'left_trend.png')
-plt.close(fig)
+predictPlotAndSave(seqs, "left")
 
 # right only
 seqs = []
@@ -371,73 +379,7 @@ for repeatLen in range(repeatUntil):
     start = int((seq_len/2)-(len(motif)/2))
     end = int((seq_len/2)+(len(motif)/2))+repeatLen
     seqs.append(background[:start] + insert + background[end:])    
-test_seqs = getOneHot(seqs)
-test_preds = model.predict([test_seqs, np.zeros((len(seqs),)),np.zeros((len(seqs),out_pred_len,2))])
-test_preds_logcount = test_preds[0]
-test_preds_profile = test_preds[1]
-test_post_counts_hypimps = profile_model_counts_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), 1))],
-    progress_message=10)[0]
-test_post_profile_hypimps = profile_model_profile_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), out_pred_len, 2))],
-    progress_message=10)[0]
-test_post_counts_hypimps = np.array(test_post_counts_hypimps)
-test_post_profile_hypimps = np.array(test_post_profile_hypimps)
-test_post_counts_actualimps = test_post_counts_hypimps*test_seqs
-test_post_profile_actualimps = test_post_profile_hypimps*test_seqs
-
-childDir = parentDir + 'right/'
-Path(childDir).mkdir(parents=True, exist_ok=True)
-counts = []
-for idx in range(len(seqs)): 
-    predcounts = np.exp(test_preds_logcount[idx])-1
-    counts.append(np.sum(predcounts))
-    fig = plt.figure(figsize=(20,9))
-    plt.rc('font', **smallFont)
-    for oneovertemp in [1.0]:
-        pred_profile = ((np.exp(test_preds_logcount[idx])-1)[None,:] #total counts
-                      *(np.exp(test_preds_profile[idx]*oneovertemp)/
-                        np.sum(np.exp(test_preds_profile[idx]*oneovertemp),axis=0)[None,:]) )   
-        start_view = 0
-        end_view = seq_len
-        total_flanking = seq_len - out_pred_len
-        left_flank = int(0.5*total_flanking)
-        right_flank = total_flanking - left_flank
-        ax1 = fig.add_subplot(311) 
-        plt.plot(np.arange(out_pred_len)+left_flank, pred_profile[:,0])
-        plt.plot(np.arange(out_pred_len)+left_flank, -pred_profile[:,1])
-        plt.xlim(start_view,end_view)
-        plt.ylim((-0.45, 0.3))
-        plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
-
-    ax2 = fig.add_subplot(312) 
-    viz_sequence.plot_weights_given_ax(ax=ax2, array=test_post_counts_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax2.set_ylim((-0.2, 0.6))
-
-    ax3 = fig.add_subplot(313)
-    viz_sequence.plot_weights_given_ax(ax=ax3, array=test_post_profile_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax3.set_ylim((-0.05, 0.1))
-    fig.savefig(childDir+str(idx).zfill(3)+'.png')
-    plt.close(fig)
-subprocess.check_call(['tar','-zcvf',parentDir+'right.zip', childDir])
-subprocess.check_call(['rm','-rf',childDir])
-
-fig = plt.figure(figsize=(10,9))
-plt.rc('font', **bigFont)
-plt.plot(range(len(seqs)), counts)
-plt.xlabel("repeat length")
-plt.ylabel("count prediction")
-plt.title(repeatPattern+" repeats right of motif")
-fig.savefig(parentDir+'right_trend.png')
-plt.close(fig)
+predictPlotAndSave(seqs, "right")
 
 # both
 seqs = []
@@ -447,73 +389,7 @@ for repeatLen in range(repeatUntil):
     start = int((seq_len/2)-(len(motif)/2))-repeatLen
     end = int((seq_len/2)+(len(motif)/2))+repeatLen
     seqs.append(background[:start] + insert + background[end:])    
-test_seqs = getOneHot(seqs)
-test_preds = model.predict([test_seqs, np.zeros((len(seqs),)),np.zeros((len(seqs),out_pred_len,2))])
-test_preds_logcount = test_preds[0]
-test_preds_profile = test_preds[1]
-test_post_counts_hypimps = profile_model_counts_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), 1))],
-    progress_message=10)[0]
-test_post_profile_hypimps = profile_model_profile_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), out_pred_len, 2))],
-    progress_message=10)[0]
-test_post_counts_hypimps = np.array(test_post_counts_hypimps)
-test_post_profile_hypimps = np.array(test_post_profile_hypimps)
-test_post_counts_actualimps = test_post_counts_hypimps*test_seqs
-test_post_profile_actualimps = test_post_profile_hypimps*test_seqs
-
-childDir = parentDir + 'both/'
-Path(childDir).mkdir(parents=True, exist_ok=True)
-counts = []
-for idx in range(len(seqs)): 
-    predcounts = np.exp(test_preds_logcount[idx])-1
-    counts.append(np.sum(predcounts))
-    fig = plt.figure(figsize=(20,9))
-    plt.rc('font', **smallFont)
-    for oneovertemp in [1.0]:
-        pred_profile = ((np.exp(test_preds_logcount[idx])-1)[None,:] #total counts
-                      *(np.exp(test_preds_profile[idx]*oneovertemp)/
-                        np.sum(np.exp(test_preds_profile[idx]*oneovertemp),axis=0)[None,:]) )   
-        start_view = 0
-        end_view = seq_len
-        total_flanking = seq_len - out_pred_len
-        left_flank = int(0.5*total_flanking)
-        right_flank = total_flanking - left_flank
-        ax1 = fig.add_subplot(311) 
-        plt.plot(np.arange(out_pred_len)+left_flank, pred_profile[:,0])
-        plt.plot(np.arange(out_pred_len)+left_flank, -pred_profile[:,1])
-        plt.xlim(start_view,end_view)
-        plt.ylim((-0.45, 0.3))
-        plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
-
-    ax2 = fig.add_subplot(312) 
-    viz_sequence.plot_weights_given_ax(ax=ax2, array=test_post_counts_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax2.set_ylim((-0.2, 0.6))
-
-    ax3 = fig.add_subplot(313)
-    viz_sequence.plot_weights_given_ax(ax=ax3, array=test_post_profile_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax3.set_ylim((-0.05, 0.1))
-    fig.savefig(childDir+str(idx).zfill(3)+'.png')
-    plt.close(fig)
-subprocess.check_call(['tar','-zcvf',parentDir+'both.zip', childDir])
-subprocess.check_call(['rm','-rf',childDir])
-
-fig = plt.figure(figsize=(10,9))
-plt.rc('font', **bigFont)
-plt.plot(range(len(seqs)), counts)
-plt.xlabel("repeat length")
-plt.ylabel("count prediction")
-plt.title(repeatPattern+" repeats both left and right of motif")
-fig.savefig(parentDir+'both_trend.png')
-plt.close(fig)
+predictPlotAndSave(seqs, "both")
 
 # mirror both
 seqs = []
@@ -523,70 +399,4 @@ for repeatLen in range(repeatUntil):
     start = int((seq_len/2)-(len(motif)/2))-repeatLen
     end = int((seq_len/2)+(len(motif)/2))+repeatLen
     seqs.append(background[:start] + insert + background[end:])    
-test_seqs = getOneHot(seqs)
-test_preds = model.predict([test_seqs, np.zeros((len(seqs),)),np.zeros((len(seqs),out_pred_len,2))])
-test_preds_logcount = test_preds[0]
-test_preds_profile = test_preds[1]
-test_post_counts_hypimps = profile_model_counts_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), 1))],
-    progress_message=10)[0]
-test_post_profile_hypimps = profile_model_profile_explainer.shap_values(
-    [test_seqs, np.zeros((len(test_seqs), out_pred_len, 2))],
-    progress_message=10)[0]
-test_post_counts_hypimps = np.array(test_post_counts_hypimps)
-test_post_profile_hypimps = np.array(test_post_profile_hypimps)
-test_post_counts_actualimps = test_post_counts_hypimps*test_seqs
-test_post_profile_actualimps = test_post_profile_hypimps*test_seqs
-
-childDir = parentDir + 'both_mirror/'
-Path(childDir).mkdir(parents=True, exist_ok=True)
-counts = []
-for idx in range(len(seqs)): 
-    predcounts = np.exp(test_preds_logcount[idx])-1
-    counts.append(np.sum(predcounts))
-    fig = plt.figure(figsize=(20,9))
-    plt.rc('font', **smallFont)
-    for oneovertemp in [1.0]:
-        pred_profile = ((np.exp(test_preds_logcount[idx])-1)[None,:] #total counts
-                      *(np.exp(test_preds_profile[idx]*oneovertemp)/
-                        np.sum(np.exp(test_preds_profile[idx]*oneovertemp),axis=0)[None,:]) )   
-        start_view = 0
-        end_view = seq_len
-        total_flanking = seq_len - out_pred_len
-        left_flank = int(0.5*total_flanking)
-        right_flank = total_flanking - left_flank
-        ax1 = fig.add_subplot(311) 
-        plt.plot(np.arange(out_pred_len)+left_flank, pred_profile[:,0])
-        plt.plot(np.arange(out_pred_len)+left_flank, -pred_profile[:,1])
-        plt.xlim(start_view,end_view)
-        plt.ylim((-0.45, 0.3))
-        plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.4f'))
-
-    ax2 = fig.add_subplot(312) 
-    viz_sequence.plot_weights_given_ax(ax=ax2, array=test_post_counts_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax2.set_ylim((-0.2, 0.6))
-
-    ax3 = fig.add_subplot(313)
-    viz_sequence.plot_weights_given_ax(ax=ax3, array=test_post_profile_actualimps[idx][start_view:end_view],
-        height_padding_factor=0.2,
-        length_padding=1.0,
-        subticks_frequency=10,
-        highlight={})
-    ax3.set_ylim((-0.05, 0.1))
-    fig.savefig(childDir+str(idx).zfill(3)+'.png')
-    plt.close(fig)
-subprocess.check_call(['tar','-zcvf',parentDir+'both_mirror.zip', childDir])
-subprocess.check_call(['rm','-rf',childDir])
-
-fig = plt.figure(figsize=(10,9))
-plt.rc('font', **bigFont)
-plt.plot(range(len(seqs)), counts)
-plt.xlabel("repeat length")
-plt.ylabel("count prediction")
-plt.title(repeatPattern+" mirrored repeats both left and right of motif")
-fig.savefig(parentDir+'both_mirror_trend.png')
-plt.close(fig)
+predictPlotAndSave(seqs, "both_mirror")
