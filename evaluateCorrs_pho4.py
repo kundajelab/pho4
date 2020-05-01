@@ -3,7 +3,7 @@ import json
 import codecs
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.stats import spearmanr, pearsonr
+from scipy.stats import spearmanr, pearsonr, gaussian_kde
 
 flankToPho4Ddg = {}
 firstLine = True
@@ -29,7 +29,12 @@ for filename in os.listdir("data/preds/"):
             y_0 = np.array(flankToDeltaLogCount[key][0]).astype(float)
             y_1 = np.array(flankToDeltaLogCount[key][1]).astype(float)
             yvals.append(np.mean(y_1-y_0))
-        plt.scatter(xvals_pho4, yvals, alpha=0.1)
+        xy = np.vstack([xvals_pho4,yvals])
+        z = gaussian_kde(xy)(xy)
+        smallFont = {'size' : 10}
+        plt.rc('font', **smallFont)
+        fig, ax = plt.subplots()
+        ax.scatter(xvals_pho4, yvals, c=z, edgecolor='', alpha=0.1)
         plt.xlabel("DDG")
         plt.ylabel(filename)
         plt.title("DDG vs model predictions: "+str(spearmanr(xvals_pho4, yvals)))
