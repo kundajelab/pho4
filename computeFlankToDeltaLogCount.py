@@ -24,6 +24,9 @@ parser.add_option('--gpus',
 parser.add_option('--flanks_csv',
     action="store", dest="flanks_csv",
     help="where are the flanks", default=None)
+parser.add_option('--out_pred_len',
+    action="store", dest="out_pred_len",
+    help="what is the length of output", default=None)
 parser.add_option('--peaks_bed',
     action="store", dest="peaks_bed",
     help="where are the peaks", default=None)
@@ -77,10 +80,10 @@ class MultichannelMultinomialNLL(object):
         return {"n": self.n}
 
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
-  model = load_model(options.model)
+    model = load_model(options.model)
 
 seq_len = 546
-out_pred_len = 200
+out_pred_len = int(options.out_pred_len)
 peaks = []
 test_chrms = ["chrX", "chrXI"]
 with open(options.peaks_bed) as inp:
@@ -105,7 +108,7 @@ chrms = ["chrI","chrII","chrIII","chrIV","chrV","chrVI","chrVII","chrVIII",
          "chrIX","chrX","chrXI","chrXII","chrXIII","chrXIV","chrXV","chrXVI","chrM"]
 
 def customChromSizeSort(c):
-  return chrms.index(c[0])
+    return chrms.index(c[0])
 
 from pyfaidx import Fasta
 genome_object = Fasta("/users/amr1/pho4/data/genome/sacCer3.genome.fa")

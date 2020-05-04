@@ -23,6 +23,9 @@ parser.add_option('--gpus',
 parser.add_option('--flanks_csv',
     action="store", dest="flanks_csv",
     help="where are the flanks", default=None)
+parser.add_option('--out_pred_len',
+    action="store", dest="out_pred_len",
+    help="what is the length of output", default=None)
 parser.add_option('--peaks_bed',
     action="store", dest="peaks_bed",
     help="where are the peaks", default=None)
@@ -79,7 +82,7 @@ with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL
     model = load_model(options.model)
 
 seq_len = 546
-out_pred_len = 200
+out_pred_len = int(options.out_pred_len)
 peaks = []
 test_chrms = ["chrX", "chrXI"]
 with open(options.peaks_bed) as inp:
@@ -104,7 +107,7 @@ chrms = ["chrI","chrII","chrIII","chrIV","chrV","chrVI","chrVII","chrVIII",
          "chrIX","chrX","chrXI","chrXII","chrXIII","chrXIV","chrXV","chrXVI","chrM"]
 
 def customChromSizeSort(c):
-  return chrms.index(c[0])
+    return chrms.index(c[0])
 
 from pyfaidx import Fasta
 genome_object = Fasta("/users/amr1/pho4/data/genome/sacCer3.genome.fa")
@@ -166,27 +169,27 @@ for seq in seq_peaks:
     candidates.append(fill_into_center(seq, betseq_original))
 preds = model.predict([getOneHot(candidates), np.zeros((len(candidates),)), np.zeros((len(candidates),out_pred_len,2))])
 count_preds = np.mean(preds[0], axis=1)
-count_preds += np.mean(preds[1], axis=1)
+#count_preds += np.mean(preds[1], axis=1)
 
 seqs = []
 preds = np.array([])
 background = candidates[np.argmin(count_preds)]
-preds_task2 = np.array([])
+#preds_task2 = np.array([])
 for flank_id, flank in enumerate(flanks):
     seqs.append(fill_into_center(background, flank[:5] + "CACGTG" + flank[5:]))
     if flank_id % 100 == 0: 
         if preds.shape[0] == 0:
             preds = model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
                                           np.zeros((len(seqs),out_pred_len,2))])[0]
-            preds_task2 = model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]
+#             preds_task2 = model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
+#                                           np.zeros((len(seqs),out_pred_len,2))])[1]
         else:
             preds = np.vstack((preds,
                            model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
                                           np.zeros((len(seqs),out_pred_len,2))])[0]))
-            preds_task2 = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]))
+#             preds_task2 = np.vstack((preds,
+#                            model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
+#                                           np.zeros((len(seqs),out_pred_len,2))])[1]))
         seqs = []
     if flank_id % 100000 == 0:
         print("completed processing ", flank_id, " flanks")
@@ -194,87 +197,13 @@ if len(seqs) != 0:
     preds = np.vstack((preds,
                        model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
                                       np.zeros((len(seqs),out_pred_len,2))])[0]))
-    preds_task2 = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]))
+#     preds_task2 = np.vstack((preds,
+#                            model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
+#                                           np.zeros((len(seqs),out_pred_len,2))])[1]))
 preds = np.mean(preds, axis=1)
-preds_task2 = np.mean(preds_task2, axis=1)
+# preds_task2 = np.mean(preds_task2, axis=1)
 flankToLogCount = {}
 for flank_id, flank in enumerate(flanks):
-    flankToLogCount[flank] = (str(preds[flank_id]), str(preds_task2[flank_id]))
+    flankToLogCount[flank] = (str(preds[flank_id]))#, str(preds_task2[flank_id]))
 with open(options.output_json+"_fixed_min.json", 'w') as fp:
-    json.dump(flankToLogCount, fp)
-    
-seqs = []
-preds = np.array([])
-background = candidates[np.argsort(count_preds)[len(count_preds)//2]]
-preds_task2 = np.array([])
-for flank_id, flank in enumerate(flanks):
-    seqs.append(fill_into_center(background, flank[:5] + "CACGTG" + flank[5:]))
-    if flank_id % 100 == 0: 
-        if preds.shape[0] == 0:
-            preds = model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[0]
-            preds_task2 = model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]
-        else:
-            preds = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[0]))
-            preds_task2 = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]))
-        seqs = []
-    if flank_id % 100000 == 0:
-        print("completed processing ", flank_id, " flanks")
-if len(seqs) != 0:
-    preds = np.vstack((preds,
-                       model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                      np.zeros((len(seqs),out_pred_len,2))])[0]))
-    preds_task2 = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]))
-preds = np.mean(preds, axis=1)
-preds_task2 = np.mean(preds_task2, axis=1)
-flankToLogCount = {}
-for flank_id, flank in enumerate(flanks):
-    flankToLogCount[flank] = (str(preds[flank_id]), str(preds_task2[flank_id]))
-with open(options.output_json+"_fixed_median.json", 'w') as fp:
-    json.dump(flankToLogCount, fp)
-    
-seqs = []
-preds = np.array([])
-background = candidates[np.argmax(count_preds)]
-preds_task2 = np.array([])
-for flank_id, flank in enumerate(flanks):
-    seqs.append(fill_into_center(background, flank[:5] + "CACGTG" + flank[5:]))
-    if flank_id % 100 == 0: 
-        if preds.shape[0] == 0:
-            preds = model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[0]
-            preds_task2 = model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]
-        else:
-            preds = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[0]))
-            preds_task2 = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]))
-        seqs = []
-    if flank_id % 100000 == 0:
-        print("completed processing ", flank_id, " flanks")
-if len(seqs) != 0:
-    preds = np.vstack((preds,
-                       model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                      np.zeros((len(seqs),out_pred_len,2))])[0]))
-    preds_task2 = np.vstack((preds,
-                           model.predict([getOneHot(seqs), np.zeros((len(seqs),)),
-                                          np.zeros((len(seqs),out_pred_len,2))])[1]))
-preds = np.mean(preds, axis=1)
-preds_task2 = np.mean(preds_task2, axis=1)
-flankToLogCount = {}
-for flank_id, flank in enumerate(flanks):
-    flankToLogCount[flank] = (str(preds[flank_id]), str(preds_task2[flank_id]))
-with open(options.output_json+"_fixed_max.json", 'w') as fp:
     json.dump(flankToLogCount, fp)
