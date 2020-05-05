@@ -32,8 +32,10 @@ with open("data/experimental/all_predicted_ddGs.csv") as inp:
         allFlanks.append(flank)
 
 if options.sample == "True" or options.sample == "1":
+    extension = '.sample.png'
     sampled_keys = np.random.choice(allFlanks, 50000, replace=False)
 else:
+    extension = '.png'
     sampled_keys = allFlanks
 
 xvals_pho4 = []
@@ -65,9 +67,9 @@ if "multitask" not in options.filename:
     fig, ax = plt.subplots()
     ax.scatter(xvals, yvals, c=z, edgecolor='', alpha=0.1)
     plt.xlabel("DDG")
-    plt.ylabel(filename)
+    plt.ylabel(options.filename)
     plt.title("DDG vs model predictions: "+str(spearmanr(xvals, yvals)))
-    plt.savefig('data/preds/figures/'+options.filename+'.png', bbox_inches='tight')
+    plt.savefig('data/preds/figures/'+options.filename+extension, bbox_inches='tight')
     plt.clf()
     plt.close()
 else:
@@ -93,9 +95,9 @@ else:
     fig, ax = plt.subplots()
     ax.scatter(xvals_pho4, yvals_pho4, c=z, edgecolor='', alpha=0.1)
     plt.xlabel("DDG")
-    plt.ylabel(filename)
+    plt.ylabel(options.filename)
     plt.title("DDG vs model predictions: "+str(spearmanr(xvals_pho4, yvals_pho4)))
-    plt.savefig('data/preds/figures/'+options.filename+'.png', bbox_inches='tight')
+    plt.savefig('data/preds/figures/'+options.filename+extension, bbox_inches='tight')
     plt.clf()
     plt.close()
 
@@ -106,8 +108,8 @@ else:
     fig, ax = plt.subplots()
     ax.scatter(xvals_cbf1, yvals_cbf1, c=z, edgecolor='', alpha=0.1)
     plt.xlabel("DDG")
-    plt.ylabel(filename)
+    plt.ylabel(options.filename)
     plt.title("DDG vs model predictions: "+str(spearmanr(xvals_cbf1, yvals_cbf1)))
-    plt.savefig('data/preds/figures/'+options.filename+'.png', bbox_inches='tight')
+    plt.savefig('data/preds/figures/'+options.filename+extension, bbox_inches='tight')
     plt.clf()
     plt.close()
