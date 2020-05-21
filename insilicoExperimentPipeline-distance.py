@@ -353,7 +353,7 @@ def predictPlotAndSave(seqs, name):
     fig = plt.figure(figsize=(10,9))
     plt.rc('font', **bigFont)
     plt.plot(range(len(seqs)), counts)
-    plt.xlabel("repeat length")
+    plt.xlabel("distance")
     plt.ylabel("count prediction")
     plt.title(repeatPattern+" repeats "+name+" of motif")
     fig.savefig(parentDir+name+'_trend.png')
