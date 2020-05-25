@@ -43,6 +43,7 @@ else:
         y_0 = np.array(flankToCountPreds[key][0]).astype(float)
         y_1 = np.array(flankToCountPreds[key][1]).astype(float)
         yvals.append(np.mean(y_1-y_0))
+yvals = np.log10(yvals)
 
 xy = np.vstack([xvals,yvals])
 z = gaussian_kde(xy)(xy)
