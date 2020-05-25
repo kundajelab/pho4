@@ -2,6 +2,7 @@ import os
 import json
 import codecs
 import numpy as np
+from math import log10
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr, pearsonr, gaussian_kde
 import optparse
@@ -25,7 +26,7 @@ with open(options.measurements) as inp:
         if firstLine:
             firstLine = False
             continue
-        flankToSig[line.strip().split('\t')[1]] = float(line.strip().split('\t')[2])
+        flankToSig[line.strip().split('\t')[1]] = log10(float(line.strip().split('\t')[2]))
 
 xvals = []
 for key in flankToSig.keys():
@@ -43,7 +44,6 @@ else:
         y_0 = np.array(flankToCountPreds[key][0]).astype(float)
         y_1 = np.array(flankToCountPreds[key][1]).astype(float)
         yvals.append(np.mean(y_1-y_0))
-yvals = np.log10(yvals)
 
 xy = np.vstack([xvals,yvals])
 z = gaussian_kde(xy)(xy)
@@ -51,7 +51,7 @@ smallFont = {'size' : 10}
 plt.rc('font', **smallFont)
 fig, ax = plt.subplots()
 ax.scatter(xvals, yvals, c=z, edgecolor='', alpha=0.1)
-plt.xlabel("PBM Signal")
+plt.xlabel("Log PBM Signal")
 plt.ylabel(options.preds)
 plt.title("PBM vs model predictions: "+str(spearmanr(xvals, yvals)))
 plt.savefig('data/preds/figures/'+options.preds+'.png', bbox_inches='tight')
