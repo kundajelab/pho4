@@ -1,3 +1,5 @@
+from __future__ import division, print_function, absolute_import
+from collections import namedtuple
 import keras_genomics
 from keras_genomics.layers.convolutional import RevCompConv1D
 import keras
@@ -20,8 +22,8 @@ from matplotlib import pyplot as plt
 from scipy.stats import spearmanr, pearsonr, gaussian_kde
 
 os.environ["CUDA_VISIBLE_DEVICES"]="1,2,4,5"
-model_path = "data/models/a5_tseries_model_2hr.h5"
-bed_path = "data/a5/tseries/2hr/1000_around_summits.bed.gz"
+model_path = "/users/amr1/pho4/data/models/a5_tseries_model_2hr_big.h5"
+bed_path = "/users/amr1/pho4/data/a5/tseries/2hr/1000_around_summits.bed.gz"
 
 def multinomial_nll(true_counts, logits):
     """Compute the multinomial negative log-likelihood
@@ -57,9 +59,9 @@ from keras.models import load_model
 from keras.utils import CustomObjectScope
 
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
-    model = load_model('/users/amr1/pho4/data/models/a5_tseries_model_2hr.h5')
+    model = load_model(model_path)
 
-seq_len = 1346
+seq_len = 2114
 out_pred_len = 1000
 inputs_coordstovals = coordstovals.core.CoordsToValsJoiner(
     coordstovals_list=[
@@ -82,7 +84,96 @@ targets_coordstovals = coordstovals.bigwig.PosAndNegSeparateLogCounts(
     profile_mode_name="task0_profile",
     center_size_to_use=out_pred_len)
 
-keras_data_batch_generator = coordbased.core.KerasBatchGenerator(
+Coordinates = namedtuple("Coordinates",
+                         ["chrom", "start", "end", "isplusstrand"])
+Coordinates.__new__.__defaults__ = (True,)
+
+
+def apply_mask(tomask, mask):
+    if isinstance(tomask, dict):
+        return dict([(key, val[mask]) for key,val in tomask.items()])
+    elif isinstance(tomask, list):
+        return [x[mask] for x in mask]
+    else:
+        return x[mask]
+
+
+class KerasBatchGenerator(keras.utils.Sequence):
+  
+    """
+    Args:
+        coordsbatch_producer (KerasSequenceApiCoordsBatchProducer)
+        inputs_coordstovals (CoordsToVals)
+        targets_coordstovals (CoordsToVals)
+        sampleweights_coordstovals (CoordsToVals)
+        coordsbatch_transformer (AbstracCoordBatchTransformer)
+        qc_func (callable): function that can be used to filter
+            out poor-quality sequences.
+        sampleweights_coordstoval: either this argument or
+            sampleweights_from_inputstargets could be used to
+            specify sample weights. sampleweights_coordstoval
+            takes a batch of coords as inputs.
+        sampleweights_from_inputstargets: either this argument or
+            sampleweights_coordstoval could be used to
+            specify sample weights. sampleweights_from_inputstargets
+            takes the inputs and targets values to generate the weights.
+    """
+    def __init__(self, coordsbatch_producer,
+                       inputs_coordstovals,
+                       targets_coordstovals,
+                       coordsbatch_transformer=None,
+                       qc_func=None,
+                       sampleweights_coordstovals=None,
+                       sampleweights_from_inputstargets=None):
+        self.coordsbatch_producer = coordsbatch_producer
+        self.inputs_coordstovals = inputs_coordstovals
+        self.targets_coordstovals = targets_coordstovals
+        self.coordsbatch_transformer = coordsbatch_transformer
+        self.sampleweights_coordstovals = sampleweights_coordstovals
+        self.sampleweights_from_inputstargets =\
+            sampleweights_from_inputstargets
+        if sampleweights_coordstovals is not None:
+            assert sampleweights_from_inputstargets is None
+        if sampleweights_from_inputstargets is not None:
+            assert sampleweights_coordstovals is None
+        self.qc_func = qc_func
+ 
+    def __getitem__(self, index):
+        coords_batch = self.coordsbatch_producer[index]
+        if (self.coordsbatch_transformer is not None):
+            coords_batch = self.coordsbatch_transformer(coords_batch)
+        inputs = self.inputs_coordstovals(coords_batch)
+        if (self.targets_coordstovals is not None):
+            targets = self.targets_coordstovals(coords_batch)
+        else:
+            targets=None
+        if (self.qc_func is not None):
+            qc_mask = self.qc_func(inputs=inputs, targets=targets)
+            inputs = apply_mask(tomask=inputs, mask=qc_mask)
+            if (targets is not None):
+                targets = apply_mask(tomask=targets, mask=qc_mask)
+        else:
+            qc_mask = None
+        if (self.sampleweights_coordstovals is not None):
+            sample_weights = self.sampleweights_coordstovals(coords_batch)
+            return (coords_batch, inputs, targets, sample_weights)
+        elif (self.sampleweights_from_inputstargets is not None):
+            sample_weights = self.sampleweights_from_inputstargets(
+                                inputs=inputs, targets=targets)
+            return (coords_batch, inputs, targets, sample_weights)
+        else:
+            if (self.targets_coordstovals is not None):
+                return (coords_batch, inputs, targets)
+            else:
+                return coords_batch, inputs
+   
+    def __len__(self):
+        return len(self.coordsbatch_producer)
+    
+    def on_epoch_end(self):
+        self.coordsbatch_producer.on_epoch_end()
+
+keras_data_batch_generator = KerasBatchGenerator(
   coordsbatch_producer=coordbatchproducers.SimpleCoordsBatchProducer(
             bed_file=bed_path,
             batch_size=128,
@@ -161,12 +252,15 @@ profile_model_profile_explainer = shap.explainers.deep.TFDeepExplainer(
 test_preds_logcount = []
 test_biastrack_logcount = []
 test_biastrack_profile = []
+test_coords = []
 test_seqs = []
 test_preds_profile = []
 test_labels_logcount = []
 test_labels_profile = []
 for batch_idx in range(len(keras_data_batch_generator)):
-    batch_inputs, batch_labels = keras_data_batch_generator[batch_idx]
+    batches, batch_inputs, batch_labels = keras_data_batch_generator[batch_idx]
+    batch_coords = [str(batch) for batch in batches]
+    test_coords.append(batch_coords)
     test_seqs.append(batch_inputs['sequence'])
     test_biastrack_logcount.append(batch_inputs['control_logcount'])
     test_biastrack_profile.append(batch_inputs['control_profile'])
@@ -178,6 +272,7 @@ for batch_idx in range(len(keras_data_batch_generator)):
 test_biastrack_logcount = np.concatenate(test_biastrack_logcount, axis=0)
 test_biastrack_profile = np.concatenate(test_biastrack_profile,axis=0)
 test_seqs = np.concatenate(test_seqs,axis=0)
+test_coords = np.concatenate(test_coords,axis=0)
 test_preds_logcount = np.concatenate(test_preds_logcount, axis=0)
 test_preds_profile = np.concatenate(test_preds_profile, axis=0)
 test_labels_logcount = np.concatenate(test_labels_logcount, axis=0)
@@ -195,14 +290,15 @@ test_post_profile_hypimps = np.array(test_post_profile_hypimps)
 test_post_counts_actualimps = test_post_counts_hypimps*test_seqs
 test_post_profile_actualimps = test_post_profile_hypimps*test_seqs
 
-np.save('data/imp-scores/gr/post_counts_hypimps.npy', test_post_counts_hypimps)
-np.save('data/imp-scores/gr/post_profile_hypimps.npy', test_post_profile_hypimps) 
-np.save('data/imp-scores/gr/post_counts_actualimps.npy', test_post_counts_actualimps) 
-np.save('data/imp-scores/gr/post_profile_actualimps.npy', test_post_profile_actualimps) 
-np.save('data/imp-scores/gr/labels_profile.npy', test_labels_profile) 
-np.save('data/imp-scores/gr/labels_logcount.npy', test_labels_logcount) 
-np.save('data/imp-scores/gr/preds_profile.npy', test_preds_profile) 
-np.save('data/imp-scores/gr/biastrack_profile.npy', test_biastrack_profile) 
-np.save('data/imp-scores/gr/biastrack_logcount.npy', test_biastrack_logcount) 
-np.save('data/imp-scores/gr/preds_logcount.npy', test_preds_logcount) 
-np.save('data/imp-scores/gr/seqs.npy', test_seqs) 
+np.save('data/imp-scores/gr_big/post_counts_hypimps.npy', test_post_counts_hypimps)
+np.save('data/imp-scores/gr_big/post_profile_hypimps.npy', test_post_profile_hypimps) 
+np.save('data/imp-scores/gr_big/post_counts_actualimps.npy', test_post_counts_actualimps) 
+np.save('data/imp-scores/gr_big/post_profile_actualimps.npy', test_post_profile_actualimps) 
+np.save('data/imp-scores/gr_big/labels_profile.npy', test_labels_profile) 
+np.save('data/imp-scores/gr_big/labels_logcount.npy', test_labels_logcount) 
+np.save('data/imp-scores/gr_big/preds_profile.npy', test_preds_profile) 
+np.save('data/imp-scores/gr_big/biastrack_profile.npy', test_biastrack_profile) 
+np.save('data/imp-scores/gr_big/biastrack_logcount.npy', test_biastrack_logcount) 
+np.save('data/imp-scores/gr_big/preds_logcount.npy', test_preds_logcount) 
+np.save('data/imp-scores/gr_big/seqs.npy', test_seqs) 
+np.save('data/imp-scores/gr_big/coords.npy', test_coords) 
