@@ -21,9 +21,9 @@ import os
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr, pearsonr, gaussian_kde
 
-os.environ["CUDA_VISIBLE_DEVICES"]="1,2,4,5"
-model_path = "/users/amr1/pho4/data/models/a5_tseries_model_2hr_big.h5"
-bed_path = "/users/amr1/pho4/data/a5/tseries/2hr/1000_around_summits.bed.gz"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+model_path = "/users/amr1/pho4/data/models/lncap_gr_model.h5"
+bed_path = "/users/amr1/pho4/data/lncap_gr/1k_around_summits.bed.gz"
 
 def multinomial_nll(true_counts, logits):
     """Compute the multinomial negative log-likelihood
@@ -66,20 +66,20 @@ out_pred_len = 1000
 inputs_coordstovals = coordstovals.core.CoordsToValsJoiner(
     coordstovals_list=[
       coordbased.coordstovals.fasta.PyfaidxCoordsToVals(
-        genome_fasta_path="/users/amr1/pho4/data/genome/hg38/hg38.genome.fa",
+        genome_fasta_path="/users/amr1/pho4/data/genome/hg19/male.hg19.fa",
         mode_name="sequence",
         center_size_to_use=seq_len),
       coordstovals.bigwig.PosAndNegSmoothWindowCollapsedLogCounts(
-        pos_strand_bigwig_path="/users/amr1/pho4/data/a5/tseries/2hr/ctl/control_pos_strand.bw",
-        neg_strand_bigwig_path="/users/amr1/pho4/data/a5/tseries/2hr/ctl/control_neg_strand.bw",
+        pos_strand_bigwig_path="/users/amr1/pho4/data/lncap_ctl/control_pos_strand.bw",
+        neg_strand_bigwig_path="/users/amr1/pho4/data/lncap_ctl/control_pos_strand.bw",
         counts_mode_name="control_logcount",
         profile_mode_name="control_profile",
         center_size_to_use=out_pred_len,
         smoothing_windows=[1,50])])
 
 targets_coordstovals = coordstovals.bigwig.PosAndNegSeparateLogCounts(
-    pos_strand_bigwig_path="/users/amr1/pho4/data/a5/tseries/2hr/pos_strand.bw",
-    neg_strand_bigwig_path="/users/amr1/pho4/data/a5/tseries/2hr/neg_strand.bw",
+    pos_strand_bigwig_path="/users/amr1/pho4/data/lncap_gr/basename_prefix.pooled.positive.bigwig",
+    neg_strand_bigwig_path="/users/amr1/pho4/data/lncap_gr/basename_prefix.pooled.negative.bigwig",
     counts_mode_name="task0_logcount",
     profile_mode_name="task0_profile",
     center_size_to_use=out_pred_len)
@@ -290,15 +290,15 @@ test_post_profile_hypimps = np.array(test_post_profile_hypimps)
 test_post_counts_actualimps = test_post_counts_hypimps*test_seqs
 test_post_profile_actualimps = test_post_profile_hypimps*test_seqs
 
-np.save('data/imp-scores/gr_big/post_counts_hypimps.npy', test_post_counts_hypimps)
-np.save('data/imp-scores/gr_big/post_profile_hypimps.npy', test_post_profile_hypimps) 
-np.save('data/imp-scores/gr_big/post_counts_actualimps.npy', test_post_counts_actualimps) 
-np.save('data/imp-scores/gr_big/post_profile_actualimps.npy', test_post_profile_actualimps) 
-np.save('data/imp-scores/gr_big/labels_profile.npy', test_labels_profile) 
-np.save('data/imp-scores/gr_big/labels_logcount.npy', test_labels_logcount) 
-np.save('data/imp-scores/gr_big/preds_profile.npy', test_preds_profile) 
-np.save('data/imp-scores/gr_big/biastrack_profile.npy', test_biastrack_profile) 
-np.save('data/imp-scores/gr_big/biastrack_logcount.npy', test_biastrack_logcount) 
-np.save('data/imp-scores/gr_big/preds_logcount.npy', test_preds_logcount) 
-np.save('data/imp-scores/gr_big/seqs.npy', test_seqs) 
-np.save('data/imp-scores/gr_big/coords.npy', test_coords) 
+np.save('data/imp-scores/lncap_gr/post_counts_hypimps.npy', test_post_counts_hypimps)
+np.save('data/imp-scores/lncap_gr/post_profile_hypimps.npy', test_post_profile_hypimps) 
+np.save('data/imp-scores/lncap_gr/post_counts_actualimps.npy', test_post_counts_actualimps) 
+np.save('data/imp-scores/lncap_gr/post_profile_actualimps.npy', test_post_profile_actualimps) 
+np.save('data/imp-scores/lncap_gr/labels_profile.npy', test_labels_profile) 
+np.save('data/imp-scores/lncap_gr/labels_logcount.npy', test_labels_logcount) 
+np.save('data/imp-scores/lncap_gr/preds_profile.npy', test_preds_profile) 
+np.save('data/imp-scores/lncap_gr/biastrack_profile.npy', test_biastrack_profile) 
+np.save('data/imp-scores/lncap_gr/biastrack_logcount.npy', test_biastrack_logcount) 
+np.save('data/imp-scores/lncap_gr/preds_logcount.npy', test_preds_logcount) 
+np.save('data/imp-scores/lncap_gr/seqs.npy', test_seqs) 
+np.save('data/imp-scores/lncap_gr/coords.npy', test_coords) 
