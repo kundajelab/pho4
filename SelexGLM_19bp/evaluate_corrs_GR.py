@@ -20,7 +20,7 @@ import os
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr, pearsonr, gaussian_kde
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="5"
 
 fastapath = "../data/genome/hg19/male.hg19.fa"
 GenomeDict={}
@@ -42,7 +42,7 @@ seq_len = 2114
 out_pred_len = 1000
 test_chrms = ["chr1", "chr8", "chr21"]
 peaks = []
-with gzip.open("../data/lncap_ar/idr.optimal_peak.narrowPeak.gz", 'rt') as inp:
+with gzip.open("../data/lncap_gr/idr.optimal_peak.narrowPeak.gz", 'rt') as inp:
     for line in inp:
         chrm = line.strip().split('\t')[0]
         if chrm not in test_chrms:
@@ -58,7 +58,9 @@ from deeplift.dinuc_shuffle import dinuc_shuffle
 
 def fill_into_center(seq, insert):
     start = int((len(seq)/2.0)-35)
-    new_seq = seq[:start]+"GTTCAGAGTTCTACAGTCCGACGATC"+insert+"TGGAATTCTCGGGTGCCAAGG"+seq[start+70:]
+    new_seq = seq[:start]+"GTTCAGAGTTCTACAGTCCGACGATC"+  \
+              seq[start+26:start+28]+insert+seq[start+47:start+49]+  \
+              "TGGAATTCTCGGGTGCCAAGG"+seq[start+70:]
     return new_seq
 
 ltrdict = {'a':[1,0,0,0],'c':[0,1,0,0],'g':[0,0,1,0],'t':[0,0,0,1],
@@ -105,7 +107,7 @@ class MultichannelMultinomialNLL(object):
         return {"n": self.n}
 
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
-    model = load_model("../data/models/lncap_ar_model.h5")
+    model = load_model("../data/models/lncap_gr_model.h5")
 
 def sampleFromBins(allAffs, allSeqs):
     bins = np.linspace(np.min(allAffs), 1.001, 11)
@@ -126,7 +128,7 @@ def sampleFromBins(allAffs, allSeqs):
     return sampled_keys
 
 num_samples = 100
-for key in ['AR_R2', 'AR_R3', 'AR_R4', 'AR_R5', 'AR_R6', 'AR_R7', 'AR_R8']:
+for key in ['GR_R2', 'GR_R3', 'GR_R4', 'GR_R5', 'GR_R6', 'GR_R7', 'GR_R8']:
     print(key)
     for table in ['kmerTableDivide.csv','kmerTableTransit.csv','symmetricKmerTableDivide.csv','symmetricKmerTableTransit.csv']:
         seqToAff = {}

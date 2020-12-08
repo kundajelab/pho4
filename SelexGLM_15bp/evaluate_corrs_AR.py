@@ -20,7 +20,7 @@ import os
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr, pearsonr, gaussian_kde
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 fastapath = "../data/genome/hg19/male.hg19.fa"
 GenomeDict={}
@@ -58,7 +58,9 @@ from deeplift.dinuc_shuffle import dinuc_shuffle
 
 def fill_into_center(seq, insert):
     start = int((len(seq)/2.0)-35)
-    new_seq = seq[:start]+"GTTCAGAGTTCTACAGTCCGACGATC"+insert+"TGGAATTCTCGGGTGCCAAGG"+seq[start+70:]
+    new_seq = seq[:start]+"GTTCAGAGTTCTACAGTCCGACGATC"+  \
+              seq[start+26:start+30]+insert+seq[start+45:start+49]+  \
+              "TGGAATTCTCGGGTGCCAAGG"+seq[start+70:]
     return new_seq
 
 ltrdict = {'a':[1,0,0,0],'c':[0,1,0,0],'g':[0,0,1,0],'t':[0,0,0,1],

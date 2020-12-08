@@ -12,6 +12,7 @@ from seqdataloader.batchproducers.coordbased import coordbatchproducers
 from seqdataloader.batchproducers.coordbased import coordbatchtransformers
 from keras.models import load_model
 from keras.utils import CustomObjectScope
+import math
 import json
 import gzip
 import codecs
@@ -106,59 +107,78 @@ class MultichannelMultinomialNLL(object):
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
     model = load_model("../data/models/lncap_gr_model.h5")
 
+def sampleFromBins(allAffs, allSeqs):
+    bins = np.linspace(np.min(allAffs), 1.001, 11)
+    digitized = np.digitize(allAffs, bins)
+    num_seqs = 1000
+    sampled_keys = []
+    curr_bin = 10
+    curr_size = math.ceil(num_seqs/curr_bin)
+    while num_seqs > 0 and curr_bin > 0:
+        print(num_seqs, curr_bin, curr_size)
+        large_basket = allSeqs[digitized == curr_bin]
+        sample_size = min(curr_size, len(large_basket))
+        sampled_keys.append(np.random.choice(large_basket, sample_size, replace=False))
+        num_seqs -= sample_size
+        curr_bin -= 1
+        if curr_bin != 0: curr_size = math.ceil(num_seqs/curr_bin)
+    sampled_keys = np.concatenate(np.array(sampled_keys))
+    return sampled_keys
+
 num_samples = 100
-num_seqs = 1000000
 for key in ['GR_R2', 'GR_R3', 'GR_R4', 'GR_R5', 'GR_R6', 'GR_R7', 'GR_R8']:
     print(key)
-    table = 'kmerTableDivide.csv'
-    seqToAff = {}
-    accept_count = 0
-    firstLine = True
-    with open("results/"+key+"/"+table) as inp:
-        for line in inp:
-            if firstLine:
-                firstLine = False
-                continue
-            row = line.strip().split(',')
-            if 'symmetric' in table and int(row[2]) == 0: continue
-            seq = row[1][1:-1].upper()
-            aff = float(row[-2])
-            seqToAff[seq] = aff
-            accept_count += 1
-            if accept_count > num_seqs: break
+    for table in ['kmerTableDivide.csv','kmerTableTransit.csv','symmetricKmerTableDivide.csv','symmetricKmerTableTransit.csv']:
+        seqToAff = {}
+        allSeqs = []
+        allAffs = []
+        firstLine = True
+        with open("results/"+key+"/"+table) as inp:
+            for line in inp:
+                if firstLine:
+                    firstLine = False
+                    continue
+                row = line.strip().split(',')
+                if 'symmetric' in table and int(row[2]) == 0: continue
+                seq = row[1][1:-1].upper()
+                aff = float(row[-2])
+                seqToAff[seq] = aff
+                allSeqs.append(seq)
+                allAffs.append(aff)
 
-    xvals = []
-    yvals = []
-    seqToDeltaLogCount = {}
-    for curr_seq in seqToAff.keys():
-        pre_seqs = []
-        post_seqs = []
-        indices = np.random.choice(len(peaks), num_samples, replace=False)
-        for idx in indices:
-            pre_seq = dinuc_shuffle(peaks[idx])
-            post_seq = fill_into_center(pre_seq, curr_seq)
-            pre_seqs.append(pre_seq)
-            post_seqs.append(post_seq)
-        pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
-        post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
-        seqToDeltaLogCount[curr_seq] = [pre[0].tolist(), post[0].tolist()]
-        xvals.append(seqToAff[curr_seq])
-        yvals.append(np.mean(post[0]-pre[0]))
+        sampled_keys = sampleFromBins(np.array(allAffs), np.array(allSeqs))
+        xvals = []
+        yvals = []
+        seqToDeltaLogCount = {}
+        for curr_seq in sampled_keys:
+            pre_seqs = []
+            post_seqs = []
+            indices = np.random.choice(len(peaks), num_samples, replace=False)
+            for idx in indices:
+                pre_seq = dinuc_shuffle(peaks[idx])
+                post_seq = fill_into_center(pre_seq, curr_seq)
+                pre_seqs.append(pre_seq)
+                post_seqs.append(post_seq)
+            pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+            post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+            seqToDeltaLogCount[curr_seq] = [pre[0].tolist(), post[0].tolist()]
+            xvals.append(seqToAff[curr_seq])
+            yvals.append(np.mean(post[0]-pre[0]))
 
-    json.dump(seqToDeltaLogCount,
-          codecs.open("preds/"+key+table+".json", 'w', encoding='utf-8'),
-          separators=(',', ':'),
-          sort_keys=True, indent=4)
+        json.dump(seqToDeltaLogCount,
+              codecs.open("preds/"+key+table+".json", 'w', encoding='utf-8'),
+              separators=(',', ':'),
+              sort_keys=True, indent=4)
 
-    xy = np.vstack([xvals,yvals])
-    z = gaussian_kde(xy)(xy)
-    smallFont = {'size' : 10}
-    plt.rc('font', **smallFont)
-    fig, ax = plt.subplots()
-    ax.scatter(xvals, yvals, c=z, edgecolor='', alpha=0.1)
-    plt.xlabel("Affinities")
-    plt.ylabel("Delta Log Counts")
-    plt.title(key+table+" Affinities vs model predictions: "+str(spearmanr(xvals, yvals)))
-    plt.savefig('figures/'+key+table+'_corrs.png', bbox_inches='tight')
-    plt.clf()
-    plt.close()
+        xy = np.vstack([xvals,yvals])
+        z = gaussian_kde(xy)(xy)
+        smallFont = {'size' : 10}
+        plt.rc('font', **smallFont)
+        fig, ax = plt.subplots()
+        ax.scatter(xvals, yvals, c=z, edgecolor='', alpha=0.1)
+        plt.xlabel("Affinities")
+        plt.ylabel("Delta Log Counts")
+        plt.title(key+table+" Affinities vs model predictions: "+str(spearmanr(xvals, yvals)))
+        plt.savefig('figures/'+key+table+'_corrs.png', bbox_inches='tight')
+        plt.clf()
+        plt.close()
