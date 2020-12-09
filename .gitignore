@@ -62,8 +62,10 @@ figures/
 *.gz
 *.bw
 *.bed
-SelexGLM/processing/
-SelexGLM/results/
+SelexGLM_*/processing/
+SelexGLM_*/results/
+SelexGLM_*/code/
+SelexGLM_*/preds/
 
 # Flask stuff:
 instance/
