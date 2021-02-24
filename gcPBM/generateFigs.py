@@ -51,27 +51,27 @@ plt.title("spearman: "+ \
           str(spearmanr(all_xvals, yvals_counts)[0]) + ", pearson: "+ str(pearsonr(all_xvals, yvals_counts)[0]))
 fig.savefig('figs/'+options.column+'_logpbm.png', dpi=fig.dpi)
 
-xvals_exp = np.exp(all_xvals)
-xy = np.vstack([xvals_exp,yvals_counts])
-z = gaussian_kde(xy)(xy)
-smallFont = {'size' : 10}
-plt.rc('font', **smallFont)
-fig, ax = plt.subplots()
-ax.scatter(xvals_exp, yvals_counts, c=z, edgecolor='', alpha=0.5)
-plt.xlabel("gcPBM Signal")
-plt.ylabel("Delta Counts")
-plt.title("spearman: "+ \
-          str(spearmanr(xvals_exp, yvals_counts)[0]) + ", pearson: "+ str(pearsonr(xvals_exp, yvals_counts)[0]))
-fig.savefig('figs/'+options.column+'_nologs.png', dpi=fig.dpi)
+# xvals_exp = np.exp(all_xvals)
+# xy = np.vstack([xvals_exp,yvals_counts])
+# z = gaussian_kde(xy)(xy)
+# smallFont = {'size' : 10}
+# plt.rc('font', **smallFont)
+# fig, ax = plt.subplots()
+# ax.scatter(xvals_exp, yvals_counts, c=z, edgecolor='', alpha=0.5)
+# plt.xlabel("gcPBM Signal")
+# plt.ylabel("Delta Counts")
+# plt.title("spearman: "+ \
+#           str(spearmanr(xvals_exp, yvals_counts)[0]) + ", pearson: "+ str(pearsonr(xvals_exp, yvals_counts)[0]))
+# fig.savefig('figs/'+options.column+'_nologs.png', dpi=fig.dpi)
 
-xy = np.vstack([xvals_exp,yvals])
-z = gaussian_kde(xy)(xy)
-smallFont = {'size' : 10}
-plt.rc('font', **smallFont)
-fig, ax = plt.subplots()
-ax.scatter(xvals_exp, yvals, c=z, edgecolor='', alpha=0.5)
-plt.xlabel("gcPBM Signal")
-plt.ylabel("Delta Log Counts")
-plt.title("spearman: "+ \
-          str(spearmanr(xvals_exp, yvals)[0]) + ", pearson: "+ str(pearsonr(xvals_exp, yvals)[0]))
-fig.savefig('figs/'+options.column+'_logcounts.png', dpi=fig.dpi)
+# xy = np.vstack([xvals_exp,yvals])
+# z = gaussian_kde(xy)(xy)
+# smallFont = {'size' : 10}
+# plt.rc('font', **smallFont)
+# fig, ax = plt.subplots()
+# ax.scatter(xvals_exp, yvals, c=z, edgecolor='', alpha=0.5)
+# plt.xlabel("gcPBM Signal")
+# plt.ylabel("Delta Log Counts")
+# plt.title("spearman: "+ \
+#           str(spearmanr(xvals_exp, yvals)[0]) + ", pearson: "+ str(pearsonr(xvals_exp, yvals)[0]))
+# fig.savefig('figs/'+options.column+'_logcounts.png', dpi=fig.dpi)
