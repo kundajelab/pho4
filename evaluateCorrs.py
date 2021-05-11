@@ -60,18 +60,22 @@ if "multitask" not in options.filename:
             y_0 = np.array(flankToCountPreds[key][0]).astype(float)
             y_1 = np.array(flankToCountPreds[key][1]).astype(float)
             yvals.append(np.mean(y_1-y_0))
+    print("DDG vs model predictions: "+str(spearmanr(xvals, yvals)))
     xy = np.vstack([xvals,yvals])
     z = gaussian_kde(xy)(xy)
-    smallFont = {'size' : 10}
-    plt.rc('font', **smallFont)
-    fig, ax = plt.subplots()
+    font = {'family' : 'normal',
+            'weight' : 'bold',
+            'size'   : 18}
+    plt.rc('font', **font)
+    fig = plt.figure(figsize=(6, 6), dpi=300)
+    ax = fig.add_subplot(111)
     ax.scatter(xvals, yvals, c=z, edgecolor='', alpha=0.1)
-    plt.xlabel("DDG")
-    plt.ylabel(options.filename)
-    plt.title("DDG vs model predictions: "+str(spearmanr(xvals, yvals)))
-    plt.savefig('data/preds/figures/'+options.filename+extension, bbox_inches='tight')
-    plt.clf()
-    plt.close()
+    fig.savefig('data/preds/figures/'+options.filename+extension, dpi=300)
+    #plt.xlabel("DDG")
+    #plt.ylabel(options.filename)
+    #plt.title("DDG vs model predictions: "+str(spearmanr(xvals, yvals)))
+    #plt.clf()
+    #plt.close()
 else:
     yvals_pho4 = []
     yvals_cbf1 = []

@@ -76,9 +76,9 @@ class MultichannelMultinomialNLL(object):
         return {"n": self.n}
 
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
-    model = load_model("data/models/a549_max_model.h5")
+    model = load_model("/users/amr1/pho4/data/models/max_hela_1_model.h5")
 
-fastapath = "data/genome/hg19/male.hg19.fa"
+fastapath = "/users/amr1/pho4/data/genome/hg38/hg38.genome.fa"
 GenomeDict={}
 sequence=''
 inputdatafile = open(fastapath)
@@ -98,7 +98,7 @@ seq_len = 1346
 out_pred_len = 1000
 test_chrms = ["chr1", "chr8", "chr21"]
 seq_peaks = []
-with gzip.open("data/a549_max/a549_max.bed.gz", 'rt') as inp:
+with gzip.open("/users/amr1/pho4/data/gcpbm/max_hela_1/idr.optimal_peak.narrowPeak.gz", 'rt') as inp:
     for line in inp:
         chrm = line.strip().split('\t')[0]
         if chrm not in test_chrms:
@@ -170,7 +170,7 @@ smallFont = {'size' : 10}
 
 repeatUntil = 65
 repeatPattern = options.repeat
-parentDir = "a549_max_preds_trends/"
+parentDir = "max_hela_1_preds_trends/"
 
 def predictPlotAndSave(seqs, name):
     test_seqs = getOneHot(seqs)

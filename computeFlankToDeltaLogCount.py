@@ -27,6 +27,9 @@ parser.add_option('--flanks_csv',
 parser.add_option('--out_pred_len',
     action="store", dest="out_pred_len",
     help="what is the length of output", default=None)
+parser.add_option('--seq_len',
+    action="store", dest="seq_len",
+    help="what is the length of input", default=None)
 parser.add_option('--peaks_bed',
     action="store", dest="peaks_bed",
     help="where are the peaks", default=None)
@@ -82,7 +85,7 @@ class MultichannelMultinomialNLL(object):
 with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL,'RevCompConv1D': RevCompConv1D}):
     model = load_model(options.model)
 
-seq_len = 546
+seq_len = int(options.seq_len)
 out_pred_len = int(options.out_pred_len)
 peaks = []
 test_chrms = ["chrX", "chrXI"]
@@ -92,7 +95,7 @@ with open(options.peaks_bed) as inp:
         if chrm not in test_chrms:
             continue
         pStart = int(line.strip().split('\t')[1])
-        summit = pStart + 1
+        summit = pStart + int(line.strip().split('\t')[-1])  
         start = int(summit - (seq_len/2))
         end = int(summit + (seq_len/2))
         peaks.append((chrm, start, end))
@@ -111,9 +114,9 @@ def customChromSizeSort(c):
     return chrms.index(c[0])
 
 from pyfaidx import Fasta
-genome_object = Fasta("/users/amr1/pho4/data/genome/sacCer3.genome.fa")
+genome_object = Fasta("/users/amr1/pho4/data/genome/saccer/sacCer3.genome.fa")
 
-chrom_sizes = readChromSizes("/users/amr1/pho4/data/genome/sacCer3.chrom.sizes")
+chrom_sizes = readChromSizes("/users/amr1/pho4/data/genome/saccer/sacCer3.chrom.sizes")
 chrom_sizes.sort(key=customChromSizeSort)
 
 num_chroms = len(chrom_sizes)
@@ -167,8 +170,8 @@ for flank_id, flank in enumerate(flanks):
         post_seq = pre_seq[:start] + insert + pre_seq[start+insert_len:]
         pre_seqs.append(pre_seq)
         post_seqs.append(post_seq)
-    pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
-    post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+    pre = model.predict(getOneHot(pre_seqs))
+    post = model.predict(getOneHot(post_seqs))
     
     flankToDeltaLogCount[flank] = [pre[0].tolist(),
                                    #pre[1].tolist(),
