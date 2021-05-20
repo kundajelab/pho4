@@ -62,6 +62,7 @@ figures/
 *.gz
 *.bw
 *.bed
+*.png
 SelexGLM_*/processing/
 SelexGLM_*/results/
 SelexGLM_*/code/
