@@ -95,7 +95,7 @@ with open(options.peaks_bed) as inp:
         if chrm not in test_chrms:
             continue
         pStart = int(line.strip().split('\t')[1])
-        summit = pStart + int(line.strip().split('\t')[-1])  
+        summit = pStart + 1    #int(line.strip().split('\t')[-1])  
         start = int(summit - (seq_len/2))
         end = int(summit + (seq_len/2))
         peaks.append((chrm, start, end))
@@ -170,8 +170,10 @@ for flank_id, flank in enumerate(flanks):
         post_seq = pre_seq[:start] + insert + pre_seq[start+insert_len:]
         pre_seqs.append(pre_seq)
         post_seqs.append(post_seq)
-    pre = model.predict(getOneHot(pre_seqs))
-    post = model.predict(getOneHot(post_seqs))
+    pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+    post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+#     pre = model.predict(getOneHot(pre_seqs))
+#     post = model.predict(getOneHot(post_seqs))
     
     flankToDeltaLogCount[flank] = [pre[0].tolist(),
                                    #pre[1].tolist(),
