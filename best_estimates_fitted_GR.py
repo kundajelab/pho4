@@ -80,25 +80,43 @@ class SigmoidFit(CalibratorFactory):
     
 seqToDdg = {}
 firstLine = True
-with open("data/experimental/GR_bindingcurves_WT_1_out.csv") as inp:
+with open("../data/experimental/GR_bindingcurves_WT_1_out.csv") as inp:
     for line in inp:
         if firstLine:
             firstLine = False
             continue
         Oligo,Kd_estimate,ddG,Motif,Sequence = line.strip().split(',')
-        seq = Sequence.upper()[14:30]
+        seq = Sequence.upper()[14:32]
+        pre = Sequence.upper()[:14]
+        post = Sequence.upper()[32:]
+        if pre != "CGCAATTGCGAGTC":
+            print(pre)
+            print("CGCAATTGCGAGTC")
+        if post != "GACCTTCCTCTCCGGCGGTATGAC":
+            print(post)
+            print("GACCTTCCTCTCCGGCGGTATGAC")
         if seq not in seqToDdg:
             seqToDdg[seq] = []
         seqToDdg[seq].append(float(ddG))
+
 firstLine = True
-with open("data/experimental/GR_bindingcurves_WT_2_out.csv") as inp:
+with open("../data/experimental/GR_bindingcurves_WT_2_out.csv") as inp:
     for line in inp:
         if firstLine:
             firstLine = False
             continue
         Oligo,Kd_estimate,ddG,Motif,Sequence = line.strip().split(',')
-        seq = Sequence.upper()[14:30]
+        seq = Sequence.upper()[14:32]
+        pre = Sequence.upper()[:14]
+        post = Sequence.upper()[32:]
+        if pre != "CGCAATTGCGAGTC":
+            print(pre)
+            print("CGCAATTGCGAGTC")
+        if post != "GACCTTCCTCTCCGGCGGTATGAC":
+            print(post)
+            print("GACCTTCCTCTCCGGCGGTATGAC")
         seqToDdg[seq].append(float(ddG))
+
 valid_keys = np.random.choice(list(seqToDdg.keys()), 100, replace=False)
 valid_labels = []
 for curr_seq in valid_keys:

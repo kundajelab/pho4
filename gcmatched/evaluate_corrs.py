@@ -19,7 +19,7 @@ import os
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr, pearsonr, gaussian_kde
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 flankToCbf1Ddg = {}
 flankToPho4Ddg = {}
