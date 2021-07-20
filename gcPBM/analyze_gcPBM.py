@@ -58,8 +58,12 @@ column = {
     "runx1": "Runx1_50nM",
     "runx2": "Runx2_50nM"
 }
+
 target = options.target
-key = target.split('_')[0]
+if target[0].isdigit():
+    key = target.split('_')[1].lower()
+    if key[-1] == '-': key = key[:-1]
+else: key = target.split('_')[0]
 dfs = pd.read_excel("/users/amr1/pho4/data/experimental/gcPBM/"+library[key])
 all_xvals = dfs[column[key]]
 seqs = dfs['Sequence']
@@ -151,7 +155,7 @@ def fill_into_center(seq, insert):
 
 from deeplift.dinuc_shuffle import dinuc_shuffle
 
-num_samples = 100
+num_samples = min(100, len(seq_peaks)) 
 yvals = []
 for idx, insert in enumerate(seqs):
     if idx % 1000 == 0:

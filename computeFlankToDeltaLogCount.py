@@ -36,6 +36,9 @@ parser.add_option('--peaks_bed',
 parser.add_option('--model',
     action="store", dest="model",
     help="where is the model", default=None)
+parser.add_option('--test_chrms',
+    action="store", dest="test_chrms",
+    help="what are the test_chrms", default=None)
 parser.add_option('--output_json',
     action="store", dest="output_json",
     help="where to store end result", default=None)
@@ -88,14 +91,16 @@ with CustomObjectScope({'MultichannelMultinomialNLL': MultichannelMultinomialNLL
 seq_len = int(options.seq_len)
 out_pred_len = int(options.out_pred_len)
 peaks = []
-test_chrms = ["chrX", "chrXI"]
+test_chrms = options.test_chrms.split(',')
+print(test_chrms)
 with open(options.peaks_bed) as inp:
     for line in inp:
         chrm = line.strip().split('\t')[0]
         if chrm not in test_chrms:
             continue
         pStart = int(line.strip().split('\t')[1])
-        summit = pStart + 1    #int(line.strip().split('\t')[-1])  
+        pEnd = int(line.strip().split('\t')[2])
+        summit = pStart + int((pEnd-pStart)/2)    #int(line.strip().split('\t')[-1])  
         start = int(summit - (seq_len/2))
         end = int(summit + (seq_len/2))
         peaks.append((chrm, start, end))
@@ -127,8 +132,7 @@ for chrom in chrom_sizes:
     chrom_size = chrom[1]
     fasta_sequences.append(genome_object[chrom_num][0:chrom_size].seq)
     
-ltrdict = {
-           'a':[1,0,0,0],'c':[0,1,0,0],'g':[0,0,1,0],'t':[0,0,0,1],
+ltrdict = {'a':[1,0,0,0],'c':[0,1,0,0],'g':[0,0,1,0],'t':[0,0,0,1],
            'n':[0,0,0,0],'A':[1,0,0,0],'C':[0,1,0,0],'G':[0,0,1,0],
            'T':[0,0,0,1],'N':[0,0,0,0]}
 def getOneHot(ISM_sequences):
@@ -141,15 +145,14 @@ def getOneHot(ISM_sequences):
         one_hot_seqs.append(one_hot)
     return np.array(one_hot_seqs)
 
+chrmsToChrmNums = {'chrI': 0, 'chrII': 1, 'chrIII': 2, 'chrIV': 3,
+                   'chrV': 4, 'chrVI': 5, 'chrVII': 6, 'chrVIII': 7,
+                   'chrIX': 8, 'chrX': 9, 'chrXI': 10, 'chrXII': 11,
+                   'chrXIII': 12, 'chrXIV': 13, 'chrXV': 14, 'chrXVI': 15}
+
 seq_peaks = []
 for peak in peaks:
-    if peak[0] == "chrX":
-        chrmNum = 9
-    elif peak[0] == "chrXI":
-        chrmNum = 10
-    else:
-        print("ERROR: Unexpected chromosome")
-    seq = fasta_sequences[chrmNum][peak[1]:peak[2]]
+    seq = fasta_sequences[chrmsToChrmNums[peak[0]]][peak[1]:peak[2]]
     if len(seq) == seq_len:
         seq_peaks.append(seq)
         
@@ -170,10 +173,10 @@ for flank_id, flank in enumerate(flanks):
         post_seq = pre_seq[:start] + insert + pre_seq[start+insert_len:]
         pre_seqs.append(pre_seq)
         post_seqs.append(post_seq)
-    pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
-    post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
-#     pre = model.predict(getOneHot(pre_seqs))
-#     post = model.predict(getOneHot(post_seqs))
+#     pre = model.predict([getOneHot(pre_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+#     post = model.predict([getOneHot(post_seqs), np.zeros((num_samples,)), np.zeros((num_samples,out_pred_len,2))])
+    pre = model.predict(getOneHot(pre_seqs))
+    post = model.predict(getOneHot(post_seqs))
     
     flankToDeltaLogCount[flank] = [pre[0].tolist(),
                                    #pre[1].tolist(),
